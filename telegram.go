@@ -1,10 +1,11 @@
 package telegram
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/parnurzeal/gorequest"
-	"github.com/tidwall/gjson"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -16,6 +17,23 @@ type Client struct {
 type Message struct {
 	ChatId string `json:"chat_id"`
 	Text   string `json:"text"`
+}
+
+type TelegramResponse struct {
+	Ok          bool   `json:"ok"`
+	ErrorCode   int    `json:"error_code"`
+	Description string `json:"description"`
+	Result      struct {
+		MessageID int `json:"message_id"`
+		Chat      struct {
+			ID       int64  `json:"id"`
+			Title    string `json:"title"`
+			Username string `json:"username"`
+			Type     string `json:"type"`
+		} `json:"chat"`
+		Date int    `json:"date"`
+		Text string `json:"text"`
+	} `json:"result"`
 }
 
 func New(token string) Client {
@@ -37,9 +55,14 @@ func SendMessage(c Client, m Message) error {
 	if errs != nil {
 		return errs[0]
 	}
-	if gjson.Get(body, "ok").Bool() {
+	var response TelegramResponse
+	err := json.Unmarshal([]byte(body), &response)
+	if err != nil {
+		return err
+	}
+	if response.Ok {
 		return nil
 	}
-	err := gjson.Get(body, "error_code").String() + ": " + gjson.Get(body, "description").String()
-	return errors.New(err)
+	strError := strconv.Itoa(response.ErrorCode) + ": " + response.Description
+	return errors.New(strError)
 }
