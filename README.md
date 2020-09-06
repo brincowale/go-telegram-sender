@@ -8,7 +8,7 @@ package main
 
 import (
 	"fmt"
-	telegram "go-telegram-sender"
+	telegram "github.com/brincowale/go-telegram-sender"
 )
 
 func main() {
