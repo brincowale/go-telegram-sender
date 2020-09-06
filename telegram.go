@@ -1,16 +1,19 @@
 package telegram
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/parnurzeal/gorequest"
+	"github.com/hashicorp/go-retryablehttp"
+	"github.com/labstack/gommon/log"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 type Client struct {
-	Request *gorequest.SuperAgent
+	Request *http.Client
 	Token   string
 }
 
@@ -37,26 +40,40 @@ type TelegramResponse struct {
 }
 
 func New(token string) Client {
-	r := gorequest.New().Set("Content-Type", "application/json").
-		Timeout(30*time.Second).Retry(3, 5*time.Second, http.StatusInternalServerError)
+	httpRetryClient := retryablehttp.NewClient()
+	httpRetryClient.RetryMax = 2
+	httpRetryClient.HTTPClient.Timeout = time.Second * 30
+	httpClient := httpRetryClient.StandardClient()
 	return Client{
-		Request: r,
+		Request: httpClient,
 		Token:   token,
 	}
 }
 
-func SendMessage(c Client, m Message) error {
-	var URL = "https://api.telegram.org/bot" + c.Token + "/sendMessage"
-	data := Message{
-		ChatId: m.ChatId,
-		Text:   m.Text,
+func (c Client) SendMessage(chatId string, message string) error {
+	data, err := json.Marshal(
+		Message{
+			ChatId: chatId,
+			Text:   message,
+		},
+	)
+	if err != nil {
+		log.Error(err)
 	}
-	_, body, errs := c.Request.Post(URL).Send(data).End()
-	if errs != nil {
-		return errs[0]
+	endpoint := "https://api.telegram.org/bot" + c.Token + "/sendMessage"
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(data))
+	if err != nil {
+		log.Error(err)
 	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.Request.Do(req)
+	if err != nil {
+		log.Error(err)
+	}
+	defer resp.Body.Close()
 	var response TelegramResponse
-	err := json.Unmarshal([]byte(body), &response)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
 		return err
 	}
