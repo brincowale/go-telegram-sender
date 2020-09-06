@@ -13,10 +13,7 @@ import (
 
 func main() {
 	t := telegram.New("BOT-API-KEY")
-	err := telegram.SendMessage(t, telegram.Message{
-		ChatId: "@channelID",
-		Text:   "Hello World!",
-	})
+	err := t.SendMessage("@channelID", "Hello World!")
 	if err != nil {
 		fmt.Println(err)
 	} else {
