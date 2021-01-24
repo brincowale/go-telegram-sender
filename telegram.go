@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/labstack/gommon/log"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -26,23 +25,12 @@ type TelegramResponse struct {
 	Ok          bool   `json:"ok"`
 	ErrorCode   int    `json:"error_code"`
 	Description string `json:"description"`
-	Result      struct {
-		MessageID int `json:"message_id"`
-		Chat      struct {
-			ID       int64  `json:"id"`
-			Title    string `json:"title"`
-			Username string `json:"username"`
-			Type     string `json:"type"`
-		} `json:"chat"`
-		Date int    `json:"date"`
-		Text string `json:"text"`
-	} `json:"result"`
 }
 
 func New(token string) Client {
 	httpRetryClient := retryablehttp.NewClient()
-	httpRetryClient.RetryMax = 2
-	httpRetryClient.HTTPClient.Timeout = time.Second * 30
+	httpRetryClient.RetryMax = 3
+	httpRetryClient.HTTPClient.Timeout = time.Second * 60
 	httpClient := httpRetryClient.StandardClient()
 	return Client{
 		Request: httpClient,
@@ -58,17 +46,17 @@ func (c Client) SendMessage(chatId string, message string) error {
 		},
 	)
 	if err != nil {
-		log.Error(err)
+		return err
 	}
-	endpoint := "https://api.telegram.org/bot" + c.Token + "/sendMessage"
+	endpoint := "https://api.telegram.org/bot" + c.Token + "/sendMessage?parse_mode=HTML"
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(data))
 	if err != nil {
-		log.Error(err)
+		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.Request.Do(req)
 	if err != nil {
-		log.Error(err)
+		return err
 	}
 	defer resp.Body.Close()
 	var response TelegramResponse

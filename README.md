@@ -1,6 +1,8 @@
 # go-telegram-sender
 A simple project to send messages to Telegram from Go projects
 
+Use the `go-retryablehttp` to retry automatically when Telegram returns a 429 HTTP error
+
 # Usage
 
 ```go
